@@ -61,6 +61,8 @@ export class GalleryThumbsComponent implements AfterViewInit, AfterViewChecked, 
   /** Thumbnails view enum */
   readonly thumbnailsView = ThumbnailsView;
 
+  private unregisterWheelListener?: () => void;
+
   private readonly _destroyed$ = new Subject<void>();
 
   /** Slider adapter */
@@ -98,6 +100,8 @@ export class GalleryThumbsComponent implements AfterViewInit, AfterViewChecked, 
     if (changes.config) {
       // Sets sliding direction
       if (changes.config.currentValue?.thumbPosition !== changes.config.previousValue?.thumbPosition) {
+        this.unregisterWheelListener?.();
+        this.unregisterWheelListener = undefined;
         switch (this.config.thumbPosition) {
           case ThumbnailsPosition.Right:
           case ThumbnailsPosition.Left:
@@ -106,6 +110,7 @@ export class GalleryThumbsComponent implements AfterViewInit, AfterViewChecked, 
           case ThumbnailsPosition.Top:
           case ThumbnailsPosition.Bottom:
             this.adapter = new HorizontalThumbAdapter(this.slider, this.config);
+            this.unregisterWheelListener = this.registerWheelListener();
             break;
         }
 
@@ -175,6 +180,7 @@ export class GalleryThumbsComponent implements AfterViewInit, AfterViewChecked, 
   }
 
   ngOnDestroy(): void {
+    this.unregisterWheelListener?.();
     this.deactivateGestures();
     this._destroyed$.next();
     this._destroyed$.complete();
@@ -182,6 +188,16 @@ export class GalleryThumbsComponent implements AfterViewInit, AfterViewChecked, 
 
   trackByFn(index: number, item: any) {
     return item.type;
+  }
+
+  registerWheelListener(): () => void {
+    const handler = (ev: WheelEvent) => {
+      this.slider.scrollLeft += ev.deltaY;
+      ev.preventDefault();
+    }
+    this.slider.addEventListener('wheel', handler);
+
+    return () => this.slider.removeEventListener('wheel', handler);
   }
 
   private scrollToIndex(value: number, behavior: ScrollBehavior): void {
